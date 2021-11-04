@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <!-- add title -->
+    <title>US Counties</title>
+    <!-- import required libraries here -->
+    <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+    <script type="text/javascript" src="../lib/d3-geo-projection.v2.min.js"></script>
+    <script type="text/javascript" src="https://d3js.org/topojson.v1.min.js"></script> 
+    
+    <style>
+        /* define CSS rules here */
+    
+    </style>
+
+    <title></title>
+</head>
+
+
+<body>
+    <!-- Add heading for the visualization -->
+    
+    <!-- Create dropdown element here. Options should be added after reading in game file, they should not be created here.-->
+    <select name="branches" id="branches"></select>
+    <!-- append visualization svg to this div-->
+    <div id="choropleth"></div>
+
+    <script>
+        var ms_counties = ['007', '011', '013', '015', '019', '021', '027', '029', '033', '043', '049', '051', '053', '055', '071', '079', '083', '089', '093', '097', '107', '119', '121', '123', '125', '127', '133', '135', '137', '143', '149', '151', '155', '161', '163']
+        var tn_counties = ['157']
+    
+        // enter code to define margin and dimensions for svg
+        // define the dimensions and margins for the graph
+        var width = 500;
+        var height = 1000;
+        var margin = { top: 50, left: 100, bottom: 50, right: 100 };
+        
+        // enter code to create svg
+        var svg = d3.select("#choropleth").append("svg")
+                                         .attr("width", width)
+                                         .attr("height", height)
+                                         .attr("transform", `translate(${margin.left}, ${margin.top})`)
+                                         .style('border','2px solid');
+
+        // set colors / themes
+        var colors = d3.scaleQuantile().range(['#b2e2e2','#66c2a4','#2ca25f','#006d2c']);
+        
+        // enter code to define projection and path required for Choropleth
+        // For grading, set the name of functions for projection and path as "projection" and "path"
+        // var projection = 
+        // var path =
+        var projection = d3.geoAlbers().scale(1).translate([0, 0]);
+        var path = d3.geoPath().projection(projection);
+
+        // var populous cities
+        var locations = d3.csv("locations.csv");
+       
+        // define any other global variables 
+        var cities = d3.json("ms_tn_cities.json");
+        var counties = d3.json("counties.json");
+
+        Promise.all([
+            // enter code to read files
+            counties,
+            cities,
+            locations
+            
+            
+        ]).then(function(values)    {
+            // enter code to call ready() with required arguments
+            ready(values[0], values[1], values[2]);
+ 
+        });
+        
+        // this function should be called once the data from files have been read
+        
+        function ready(counties, cities, locations) {
+        
+            
+            // var top_towns = populations.sort(function(a, b) {
+            //     return d3.descending(parseInt(a.population), parseInt(b.population));
+            // }).slice(0, 70);
+            // console.log(populations);
+            // var town_names = top_towns.map(function(town)   {
+            //     return town.city.toLowerCase();
+            // });
+            // console.log(town_names);
+            console.log(locations);
+            towns = locations.map(function(location)    {
+                return location.location;
+            });
+            
+            // narrow to region
+            var region = {type: counties.type, features: counties.features.filter(function(feature)    {
+                return (feature.properties.STATE == "28" && ms_counties.includes(feature.properties.COUNTY)) || 
+                       (feature.properties.STATE == "47" && tn_counties.includes(feature.properties.COUNTY));
+                })
+            };
+            var region_cities = {type: counties.type, totalFeatures: "38186", features: cities.features.filter(function(feature)    {
+                var town_name = feature.properties.name;
+                console.log(town_name);
+                return (feature.properties.state_fips == "28" 
+                        && ms_counties.includes(feature.properties.countyfips) 
+                        && towns.includes(town_name));
+                    
+                })
+            };
+            // console.log(region_cities);
+            // (feature.properties.state_fips == "47" && tn_counties.includes(feature.properties.countyfips));
+         
+
+            // create Choropleth with default option. Call createMapAndLegend() with required arguments. 
+            createMapAndLegend(region, region_cities);
+        }
+
+        // this function should create a Choropleth and legend using the ms data
+        function createMapAndLegend(region, cities) {
+            console.log(cities);
+
+            // cities.features.map(function(city)   {
+            //     console.log(city);
+            // });
+          
+            // create bounding box
+            var b = path.bounds(region);
+            var s = .95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);
+            var t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
+
+            // update projection with bounding box
+            projection.scale(s).translate(t);
+
+            var counties_domain = region.features.map(function(feature)    {
+                return feature.properties.COUNTY;
+            })
+
+             // add domain to colors 
+             colors.domain(counties_domain);
+
+            // append countries to svg
+            var counties = svg.append("g")
+                              .attr("id", "counties")
+                              .attr("class", "counties")
+                              .selectAll("path")
+                              .data(region.features)
+                              .enter().append("path")
+                                      .attr("fill", function(feature)   {
+                                          return colors(feature.properties.COUNTY);
+                                      })
+                                      .attr("d", path);
+            
+            // draw map points for cities
+            var ms_tn_cities = svg.selectAll("circle")
+                                  .data(cities.features)
+                                  .enter()
+                                  .append("circle")
+                                  .attr("class", "circles")
+                                  .attr("cx", function(feature)    {
+                                      return projection([feature.properties.longitude, feature.properties.latitude])[0];
+                                  })
+                                  .attr("cy", function(feature)    {
+                                      return projection([feature.properties.longitude, feature.properties.latitude])[1];
+                                  })
+                                  .attr("r", "4px");
+            
+            // draw labels
+            var city_names = svg.selectAll("text")
+                                .data(cities.features)
+                                .enter()
+                                .append("text")
+                                .text(function(feature) {
+                                    return feature.properties.name;
+                                })
+                                .attr("x", function(feature)    {
+                                    return projection([feature.properties.longitude, feature.properties.latitude])[0] + 7;
+                                })
+                                .attr("y", function(feature)    {
+                                    return projection([feature.properties.longitude, feature.properties.latitude])[1] - 7;
+                                })
+                                .attr("font-size", "12px")
+                                .on("mouseover", function(feature, i)  {
+                                    d3.select(this).attr("font-size", "25px");
+                                })
+                                .on("mouseout", function(feature)   {
+                                    d3.select(this).attr("font-size", "12px");
+                                })
+        }
+    </script>
+
+</body>
+
+</html>

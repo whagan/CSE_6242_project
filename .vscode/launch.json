@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "python":"${command:python.interpreterPath}"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "NodeJS",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/HW1/Q1/js/index.js",
+            "console": "integratedTerminal"
+        }
+    ]
+}
